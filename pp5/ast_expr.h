@@ -16,6 +16,7 @@
 #include "ast.h"
 #include "ast_stmt.h"
 #include "list.h"
+#include "mips.h"
 
 class NamedType; // for new
 class Type; // for NewArray
@@ -26,6 +27,8 @@ class Expr : public Stmt
   public:
     Expr(yyltype loc) : Stmt(loc) {}
     Expr() : Stmt() {}
+    virtual int GetSize() = 0;
+    virtual void Emit(Mips *mipsContext) = 0;
 };
 
 /* This node type is used for those places where an expression is optional.
@@ -34,6 +37,8 @@ class Expr : public Stmt
 class EmptyExpr : public Expr
 {
   public:
+    int GetSize() { return 0; }
+    void Emit(Mips *mipsContext) { };
 };
 
 class IntConstant : public Expr 
@@ -43,6 +48,8 @@ class IntConstant : public Expr
   
   public:
     IntConstant(yyltype loc, int val);
+    int GetSize() { return 4; }
+    void Emit(Mips *mipsContext);
 };
 
 class DoubleConstant : public Expr 
@@ -52,6 +59,8 @@ class DoubleConstant : public Expr
     
   public:
     DoubleConstant(yyltype loc, double val);
+    int GetSize() { return 8; }
+    void Emit(Mips *mipsContext);
 };
 
 class BoolConstant : public Expr 
@@ -61,6 +70,8 @@ class BoolConstant : public Expr
     
   public:
     BoolConstant(yyltype loc, bool val);
+    int GetSize() { return 4; }
+    void Emit(Mips *mipsContext);
 };
 
 class StringConstant : public Expr 
@@ -70,12 +81,16 @@ class StringConstant : public Expr
     
   public:
     StringConstant(yyltype loc, const char *val);
+    int GetSize() { return 4; }
+    void Emit(Mips *mipsContext);
 };
 
 class NullConstant: public Expr 
 {
   public: 
     NullConstant(yyltype loc) : Expr(loc) {}
+    int GetSize() { return 4; }
+    void Emit(Mips *mipsContext);
 };
 
 class Operator : public Node 
@@ -97,6 +112,8 @@ class CompoundExpr : public Expr
   public:
     CompoundExpr(Expr *lhs, Operator *op, Expr *rhs); // for binary
     CompoundExpr(Operator *op, Expr *rhs);             // for unary
+    virtual int GetSize();
+    virtual void Emit(Mips *mipsContext);
 };
 
 class ArithmeticExpr : public CompoundExpr 
@@ -132,18 +149,24 @@ class AssignExpr : public CompoundExpr
   public:
     AssignExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     const char *GetPrintNameForNode() { return "AssignExpr"; }
+    int GetSize();
+    void Emit(Mips *mipsContext);
 };
 
 class LValue : public Expr 
 {
   public:
     LValue(yyltype loc) : Expr(loc) {}
+    int GetSize() { return 0; }
+    void Emit(Mips *mipsContext);
 };
 
 class This : public Expr 
 {
   public:
     This(yyltype loc) : Expr(loc) {}
+    int GetSize() { return 0; }
+    void Emit(Mips *mipsContext);
 };
 
 class ArrayAccess : public LValue 
@@ -153,6 +176,8 @@ class ArrayAccess : public LValue
     
   public:
     ArrayAccess(yyltype loc, Expr *base, Expr *subscript);
+    int GetSize() { return 40; }
+    void Emit(Mips *mipsContext);
 };
 
 /* Note that field access is used both for qualified names
@@ -168,6 +193,8 @@ class FieldAccess : public LValue
     
   public:
     FieldAccess(Expr *base, Identifier *field); //ok to pass NULL base
+    int GetSize() { return 0; }
+    void Emit(Mips *mipsContext);
 };
 
 /* Like field access, call is used both for qualified base.field()
@@ -183,6 +210,8 @@ class Call : public Expr
     
   public:
     Call(yyltype loc, Expr *base, Identifier *field, List<Expr*> *args);
+    int GetSize();
+    void Emit(Mips *mipsContext);
 };
 
 class NewExpr : public Expr
@@ -192,6 +221,8 @@ class NewExpr : public Expr
     
   public:
     NewExpr(yyltype loc, NamedType *clsType);
+    int GetSize() { return 4; }
+    void Emit(Mips *mipsContext);
 };
 
 class NewArrayExpr : public Expr
@@ -202,18 +233,24 @@ class NewArrayExpr : public Expr
     
   public:
     NewArrayExpr(yyltype loc, Expr *sizeExpr, Type *elemType);
+    int GetSize() { return 4; }
+    void Emit(Mips *mipsContext);
 };
 
 class ReadIntegerExpr : public Expr
 {
   public:
     ReadIntegerExpr(yyltype loc) : Expr(loc) {}
+    int GetSize() { return 4; }
+    void Emit(Mips *mipsContext);
 };
 
 class ReadLineExpr : public Expr
 {
   public:
     ReadLineExpr(yyltype loc) : Expr (loc) {}
+    int GetSize() { return 4; }
+    void Emit(Mips *mipsContext);
 };
 
     

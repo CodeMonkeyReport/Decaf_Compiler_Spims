@@ -19,10 +19,9 @@
 
 class Type : public Node 
 {
-  protected:
-    char *typeName;
 
-  public :
+  public:
+    char *typeName;
     static Type *intType, *doubleType, *boolType, *voidType,
                 *nullType, *stringType, *errorType;
 
@@ -36,10 +35,9 @@ class Type : public Node
 
 class NamedType : public Type 
 {
-  protected:
-    Identifier *id;
     
   public:
+    Identifier *id;
     NamedType(Identifier *i);
     
     void PrintToStream(std::ostream& out) { out << id; }
@@ -47,10 +45,9 @@ class NamedType : public Type
 
 class ArrayType : public Type 
 {
-  protected:
-    Type *elemType;
 
   public:
+    Type *elemType;
     ArrayType(yyltype loc, Type *elemType);
     
     void PrintToStream(std::ostream& out) { out << elemType << "[]"; }

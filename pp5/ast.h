@@ -31,7 +31,11 @@
 
 #include <stdlib.h>   // for NULL
 #include "location.h"
+#include "tac.h"
+#include "hashtable.h"
 #include <iostream>
+
+class FnDecl;
 
 class Node 
 {
@@ -42,19 +46,20 @@ class Node
   public:
     Node(yyltype loc);
     Node();
-    
+    Hashtable<Location*> *symbolTable;
     yyltype *GetLocation()   { return location; }
+    virtual FnDecl* FindFunctionDeclare();
     void SetParent(Node *p)  { parent = p; }
     Node *GetParent()        { return parent; }
+    Location* FindLocation(const char *name);
 };
    
 
 class Identifier : public Node 
 {
-  protected:
-    char *name;
     
   public:
+    char *name;
     Identifier(yyltype loc, const char *name);
     friend std::ostream& operator<<(std::ostream& out, Identifier *id) { return out << id->name; }
 };
