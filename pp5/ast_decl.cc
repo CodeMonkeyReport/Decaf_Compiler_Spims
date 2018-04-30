@@ -2,7 +2,7 @@
  * -----------------
  * Implementation of Decl node classes.
  */
-#include "mips.h"
+#include "codegen.h"
 #include "ast_decl.h"
 #include "ast_type.h"
 #include "ast_stmt.h"
@@ -12,9 +12,9 @@ Decl::Decl(Identifier *n) : Node(*n->GetLocation()) {
     Assert(n != NULL);
     (id=n)->SetParent(this); 
 }
-void Decl::Emit(Mips *mipsContext)
+Location* Decl::Emit(CodeGenerator *codeGen)
 {
-
+    return NULL;
 }
 
 VarDecl::VarDecl(Identifier *n, Type *t) : Decl(n) {
@@ -25,9 +25,10 @@ void VarDecl::Declare(Hashtable<Location*> *symbolTable)
 {
 
 }
-void VarDecl::Emit(Mips *mipsContext)
+Location* VarDecl::Emit(CodeGenerator *codeGen)
 {
     // TODO
+    return NULL;
 }
 
 
@@ -43,9 +44,10 @@ void ClassDecl::Declare(Hashtable<Location*> *symbolTable)
 {
     // TODO
 }
-void ClassDecl::Emit(Mips *mipsContext)
+Location* ClassDecl::Emit(CodeGenerator *codeGen)
 {
     // TODO
+    return NULL;
 }
 
 
@@ -57,9 +59,10 @@ void InterfaceDecl::Declare(Hashtable<Location*> *symbolTable)
 {
     // TODO
 }
-void InterfaceDecl::Emit(Mips *mipsContext)
+Location* InterfaceDecl::Emit(CodeGenerator *codeGen)
 {
     // TODO
+    return NULL;
 }
 	
 FnDecl::FnDecl(Identifier *n, Type *r, List<VarDecl*> *d) : Decl(n) {
@@ -67,39 +70,44 @@ FnDecl::FnDecl(Identifier *n, Type *r, List<VarDecl*> *d) : Decl(n) {
     (returnType=r)->SetParent(this);
     (formals=d)->SetParentAll(this);
     this->localVariableCount = 0;
+    this->frameSize = 0;
     this->symbolTable = new Hashtable<Location*>();
     body = NULL;
 }
-void FnDecl::Emit(Mips *mipsContext)
+Location* FnDecl::Emit(CodeGenerator *codeGen)
 {
     // Null body means this is a prototype, no need to emit anything
     if (this->body == NULL)
-        return;
+        return NULL;
 
     // If body is not a StmtBlock we have problems with the parser
-    Label *funcLabel = new Label(this->id->name);
-    BeginFunc *begin = new BeginFunc();
 
     // Do the stuff, add the declares
-    begin->SetFrameSize(body->GetSize());
+    codeGen->GenLabel(this->id->name);
+    BeginFunc *begin = codeGen->GenBeginFunc();
 
-    EndFunc *end = new EndFunc();
+    // Start off the frame offset at -8 for the first local.
+    codeGen->stackFrameOffset = codeGen->OffsetToFirstLocal;
+    this->body->Emit(codeGen);
 
-    funcLabel->Emit(mipsContext);
-    begin->Emit(mipsContext);
-    body->Emit(mipsContext);
-    end->Emit(mipsContext);
+    begin->SetFrameSize( -1 * (codeGen->stackFrameOffset + 8 ));
+    codeGen->GenEndFunc();
+    return NULL;
 }
 void FnDecl::Declare(Hashtable<Location*> *symbolTable)
 {
-    Location* previousDeclare = symbolTable->Lookup(this->id->name);
     int paramCount = this->formals->NumElements();
 
     for (int i = 0; i < this->formals->NumElements(); i++)
     {
-        char *varName = this->formals->Nth(i)->id->name;
+        VarDecl *decl = dynamic_cast<VarDecl*>(this->formals->Nth(i));
+        Assert(decl != NULL); // Should always be a VarDecl
+
+        char *varName = decl->id->name;
         int currentParameterOffset = (i + 1) * 4;
-        symbolTable->Enter(varName, new Location(fpRelative, currentParameterOffset, varName));
+        Location *newLocation = new Location(fpRelative, currentParameterOffset, varName);
+        newLocation->type = decl->type == Type::intType ? intType : strType;
+        this->symbolTable->Enter(varName, newLocation);
     }
 }
 void FnDecl::SetFunctionBody(Stmt *b) { 

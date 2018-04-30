@@ -1,0 +1,14 @@
+void main()
+{
+   int[] arr;
+   int i;
+
+   arr = NewArray(10, int);
+   i = 0;
+   while(i <= 10) {
+      arr[i] = i;
+      Print(i, "\n");
+      i = i + 1;
+  }
+  Print("Done\n");
+}

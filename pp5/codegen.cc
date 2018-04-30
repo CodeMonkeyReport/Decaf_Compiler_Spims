@@ -31,6 +31,8 @@ Location *CodeGenerator::GenTempVar()
   char temp[10];
   Location *result = NULL;
   sprintf(temp, "_tmp%d", nextTempNum++);
+  result = new Location(fpRelative, this->stackFrameOffset, temp);
+  this->stackFrameOffset -= 4;
   /* pp5: need to create variable in proper location
      in stack frame for use as temporary. Until you
      do that, the assert below will always fail to remind

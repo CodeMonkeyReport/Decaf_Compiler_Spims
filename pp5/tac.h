@@ -36,7 +36,8 @@ class Mips;
     // with name "num", segment fpRelative, and offset -8. 
  
 typedef enum {fpRelative, gpRelative} Segment;
-
+typedef enum {intType, strType} Types;
+typedef enum {reference, value} Structure;
 class Location
 {
   protected:
@@ -47,11 +48,12 @@ class Location
 	  
   public:
     Location(Segment seg, int offset, const char *name);
-
+    Types type;
     const char *GetName() const     { return variableName; }
     Segment GetSegment() const      { return segment; }
     int GetOffset() const           { return offset; }
     Location* GetBase() const       { return base; }
+    Structure structure;
 };
  
 

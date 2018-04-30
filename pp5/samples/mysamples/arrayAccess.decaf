@@ -1,0 +1,12 @@
+void main()
+{
+    int[] a;
+    int b;
+    a = NewArray(2, int);
+
+    a[0] = 1;
+    
+    b = a[0];
+
+    Print(b);
+}

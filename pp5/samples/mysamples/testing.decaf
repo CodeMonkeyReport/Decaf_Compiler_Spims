@@ -1,0 +1,10 @@
+
+void main()
+{
+   int n;
+   while (true) {
+      n = ReadInteger();
+      if (n == -1) break;
+  }
+
+}

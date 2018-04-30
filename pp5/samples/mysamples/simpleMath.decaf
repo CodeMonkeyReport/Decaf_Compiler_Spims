@@ -6,6 +6,11 @@ int main()
 
   a = 10;
   b = 5;
+  a = a + b;
+}
 
-  return a + b;
+
+int test(int formal1, int formal2)
+{
+  return formal1 + formal2;
 }

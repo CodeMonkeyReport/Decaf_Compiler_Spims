@@ -15,7 +15,7 @@
 
 #include "list.h"
 #include "ast.h"
-#include "mips.h"
+#include "codegen.h"
 
 class Decl;
 class VarDecl;
@@ -30,7 +30,7 @@ class Program : public Node
      Program(List<Decl*> *declList);
      static Hashtable<Location*> *globalSymbolTable;
      void Check();
-     void Emit();
+     Location* Emit();
 };
 
 class Stmt : public Node
@@ -38,8 +38,8 @@ class Stmt : public Node
   public:
      Stmt() : Node() {}
      Stmt(yyltype loc) : Node(loc) {}
-     virtual void Emit(Mips *mipsContext) {};
-     virtual int GetSize() { return 0; };
+     virtual Location* Emit(CodeGenerator  *codeGen) { return NULL; };
+     
 };
 
 class StmtBlock : public Stmt 
@@ -48,8 +48,8 @@ class StmtBlock : public Stmt
     List<Stmt*> *stmts;
     List<VarDecl*> *decls;
     StmtBlock(List<VarDecl*> *variableDeclarations, List<Stmt*> *statements);
-    void Emit(Mips *mipsContext);
-    int GetSize();
+    Location* Emit(CodeGenerator  *codeGen);
+    
 };
 
   
@@ -61,8 +61,8 @@ class ConditionalStmt : public Stmt
   
   public:
     ConditionalStmt(Expr *testExpr, Stmt *body);
-    void Emit(Mips *mipsContext);
-    int GetSize();
+    Location* Emit(CodeGenerator  *codeGen);
+    
 };
 
 class LoopStmt : public ConditionalStmt 
@@ -70,8 +70,8 @@ class LoopStmt : public ConditionalStmt
   public:
     LoopStmt(Expr *testExpr, Stmt *body)
             : ConditionalStmt(testExpr, body) {}
-    void Emit(Mips *mipsContext);
-    int GetSize();
+    Location* Emit(CodeGenerator  *codeGen);
+    
 };
 
 class ForStmt : public LoopStmt 
@@ -81,16 +81,16 @@ class ForStmt : public LoopStmt
   
   public:
     ForStmt(Expr *init, Expr *test, Expr *step, Stmt *body);
-    void Emit(Mips *mipsContext);
-    int GetSize();
+    Location* Emit(CodeGenerator  *codeGen);
+    
 };
 
 class WhileStmt : public LoopStmt 
 {
   public:
     WhileStmt(Expr *test, Stmt *body) : LoopStmt(test, body) {}
-    void Emit(Mips *mipsContext);
-    int GetSize();
+    Location* Emit(CodeGenerator  *codeGen);
+    
 };
 
 class IfStmt : public ConditionalStmt 
@@ -100,15 +100,15 @@ class IfStmt : public ConditionalStmt
   
   public:
     IfStmt(Expr *test, Stmt *thenBody, Stmt *elseBody);
-    void Emit(Mips *mipsContext);
-    int GetSize();
+    Location* Emit(CodeGenerator  *codeGen);
+    
 };
 
 class BreakStmt : public Stmt 
 {
   public:
     BreakStmt(yyltype loc) : Stmt(loc) {}
-
+    Location *Emit(CodeGenerator *codeGen);
 };
 
 class ReturnStmt : public Stmt  
@@ -118,8 +118,8 @@ class ReturnStmt : public Stmt
   
   public:
     ReturnStmt(yyltype loc, Expr *expr);
-    void Emit(Mips *mipsContext);
-    int GetSize();
+    Location* Emit(CodeGenerator  *codeGen);
+    
 };
 
 class PrintStmt : public Stmt
@@ -129,8 +129,8 @@ class PrintStmt : public Stmt
     
   public:
     PrintStmt(List<Expr*> *arguments);
-    void Emit(Mips *mipsContext);
-    int GetSize();
+    Location* Emit(CodeGenerator  *codeGen);
+    
 };
 
 

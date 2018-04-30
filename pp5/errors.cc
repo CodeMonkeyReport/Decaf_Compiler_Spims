@@ -181,7 +181,7 @@ void ReportError::BreakOutsideLoop(BreakStmt *bStmt) {
 void ReportError::NoMainFound() {
     OutputError(NULL, "Linker: function 'main' not defined");
 }
-  
+
 /* Function: yyerror()
  * -------------------
  * Standard error-reporting function expected by yacc. Our version merely

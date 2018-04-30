@@ -8,7 +8,7 @@
 #include <cstring>
 
 Location::Location(Segment s, int o, const char *name) :
-  variableName(strdup(name)), segment(s), offset(o), base(NULL) {}
+  variableName(strdup(name)), segment(s), offset(o), base(NULL), structure(value) { }
 
  
 void Instruction::Print() {

@@ -15,6 +15,7 @@
 #include "mips.h"
 #include "ast.h"
 #include "list.h"
+#include "codegen.h"
 #include "hashtable.h"
 
 class Type;
@@ -28,18 +29,16 @@ class Decl : public Node
   public:
     Identifier *id;
     Decl(Identifier *name);
-    virtual void Emit(Mips *mipsContext);
+    virtual Location* Emit(CodeGenerator *codeGen);
     virtual void Declare(Hashtable<Location*> *symbolTable) = 0;
     friend std::ostream& operator<<(std::ostream& out, Decl *d) { return out << d->id; }
 };
 
 class VarDecl : public Decl 
-{
-  protected:
-    Type *type;
-    
+{    
   public:
-    void Emit(Mips *mipsContext);
+    Type *type;
+    Location* Emit(CodeGenerator *codeGen);
     VarDecl(Identifier *name, Type *type);
     void Declare(Hashtable<Location*> *symbolTable);
 };
@@ -52,7 +51,7 @@ class ClassDecl : public Decl
     List<NamedType*> *implements;
 
   public:
-    void Emit(Mips *mipsContext);
+    Location* Emit(CodeGenerator *codeGen);
     ClassDecl(Identifier *name, NamedType *extends, 
               List<NamedType*> *implements, List<Decl*> *members);
     void Declare(Hashtable<Location*> *symbolTable);
@@ -64,7 +63,7 @@ class InterfaceDecl : public Decl
     List<Decl*> *members;
     
   public:
-    void Emit(Mips *mipsContext);
+    Location* Emit(CodeGenerator *codeGen);
     InterfaceDecl(Identifier *name, List<Decl*> *members);
     void Declare(Hashtable<Location*> *symbolTable);
 };
@@ -76,9 +75,10 @@ class FnDecl : public Decl
     List<VarDecl*> *formals;
     Type *returnType;
     Stmt *body;
-    Hashtable<Location*> *symbolTable;
   public:
-    void Emit(Mips *mipsContext);
+    Hashtable<Location*> *symbolTable;
+    Location* Emit(CodeGenerator *codeGen);
+    int frameSize;
     FnDecl(Identifier *name, Type *returnType, List<VarDecl*> *formals);
     void SetFunctionBody(Stmt *b);
     void Declare(Hashtable<Location*> *symbolTable);

@@ -6,6 +6,7 @@
 #include "ast_expr.h"
 #include "ast_type.h"
 #include "ast_decl.h"
+#include "stdio.h"
 #include <string.h>
 
 
@@ -13,45 +14,64 @@
 IntConstant::IntConstant(yyltype loc, int val) : Expr(loc) {
     value = val;
 }
-void IntConstant::Emit(Mips *mipsContext)
+Location* IntConstant::Emit(CodeGenerator *codeGen)
 {
-    // TODO
+    Location *result;
+
+    result = codeGen->GenLoadConstant(this->value);
+    result->type = intType;
+    return result;
 }
 
 DoubleConstant::DoubleConstant(yyltype loc, double val) : Expr(loc) {
     value = val;
 }
-void DoubleConstant::Emit(Mips *mipsContext)
+Location* DoubleConstant::Emit(CodeGenerator *codeGen)
 {
     // TODO
+    return NULL;
 }
 
 BoolConstant::BoolConstant(yyltype loc, bool val) : Expr(loc) {
     value = val;
 }
-void BoolConstant::Emit(Mips *mipsContext)
+Location* BoolConstant::Emit(CodeGenerator *codeGen)
 {
-    // TODO
+    Location *result;
+
+    result = codeGen->GenLoadConstant(this->value);
+    result->type = intType;
+    return result;
 }
 
 StringConstant::StringConstant(yyltype loc, const char *val) : Expr(loc) {
     Assert(val != NULL);
     value = strdup(val);
 }
-void StringConstant::Emit(Mips *mipsContext)
+Location* StringConstant::Emit(CodeGenerator *codeGen)
 {
-    // TODO
+    Location *result;
+
+    result = codeGen->GenLoadConstant(this->value);
+    result->type = strType;
+    return result;
 }
 
-void NullConstant::Emit(Mips *mipsContext)
+Location* NullConstant::Emit(CodeGenerator *codeGen)
 {
     // TODO
+    return NULL;
 }
 
 Operator::Operator(yyltype loc, const char *tok) : Node(loc) {
     Assert(tok != NULL);
     strncpy(tokenString, tok, sizeof(tokenString));
 }
+Location* Operator::Emit(CodeGenerator *codeGen)
+{
+    return NULL;
+}
+
 CompoundExpr::CompoundExpr(Expr *l, Operator *o, Expr *r) 
   : Expr(Join(l->GetLocation(), r->GetLocation())) {
     Assert(l != NULL && o != NULL && r != NULL);
@@ -67,48 +87,172 @@ CompoundExpr::CompoundExpr(Operator *o, Expr *r)
     (op=o)->SetParent(this);
     (right=r)->SetParent(this);
 }
-void CompoundExpr::Emit(Mips *mipsContext)
+Location* CompoundExpr::Emit(CodeGenerator *codeGen)
 {
+    Location *left = NULL;
+    Location *right = NULL;
+    Location *result = NULL;
 
+    if(this->left != NULL)
+        left = this->left->Emit(codeGen);
+    right = this->right->Emit(codeGen);
+
+    Assert(right != NULL);
+
+    
+    if (left == NULL) // Unary
+    {
+        if (strcmp(this->op->tokenString, "!") == 0) // Unary not
+        {
+            Location *oneConstant = codeGen->GenLoadConstant(1);
+
+            // Boolean not is handles by the sub operation,
+            // 1 - 0 (false) = 1 (true)
+            // 1 - 1  (true) = 0 (false)
+            result = codeGen->GenBinaryOp("-", oneConstant, right);
+        }
+        else // Otherwise unary -
+        {
+            Location *zeroConstant = codeGen->GenLoadConstant(0);
+            
+            // Unary minus handled as 0 - target
+            result = codeGen->GenBinaryOp("-", zeroConstant, right);
+        }
+    }
+    else             // Binary
+    {
+        result = codeGen->GenBinaryOp(this->op->tokenString, left, right);
+    }
+    result->type = intType;
+    return result;
 }
 
-int CompoundExpr::GetSize()
+Location* RelationalExpr::Emit(CodeGenerator *codeGen)
 {
-    int totalSize = 0;
+    Location *left = NULL;
+    Location *right = NULL;
+    Location *result = NULL;
 
-    // Add left and right values
     if (this->left != NULL)
-        totalSize += this->left->GetSize();
-    totalSize += this->right->GetSize();
+        left = this->left->Emit(codeGen);
+    right = this->right->Emit(codeGen);
+    Assert(left != NULL && right != NULL);
 
-    // Add 4 to save the new computed value
-    totalSize += 4;
+    char *opString = this->op->tokenString;
+    Assert(opString != NULL);
 
-    return totalSize;
+    if (strcmp(opString, "<") == 0)
+    {
+        result = codeGen->GenBinaryOp("<", left, right);
+    }
+    else if (strcmp(opString, ">") == 0)
+    {
+        result = codeGen->GenBinaryOp("<", right, left);
+    }
+    else if (strcmp(opString, "<=") == 0)
+    {
+        Location *lessResult = codeGen->GenBinaryOp("<", left, right);
+        Location *eqResult = codeGen->GenBinaryOp("==", left, right);
+
+        result = codeGen->GenBinaryOp("||", lessResult, eqResult);
+    }
+    else if (strcmp(opString, ">=") == 0)
+    {
+        Location *lessResult = codeGen->GenBinaryOp("<", right, left);
+        Location *eqResult = codeGen->GenBinaryOp("==", left, right);
+
+        result = codeGen->GenBinaryOp("||", lessResult, eqResult);
+    }
+    return result;
 }
 
-int AssignExpr::GetSize()
-{
-    int totalSize = 0;
-
-    // Only the right value matters here
-    totalSize += this->right->GetSize();
-
-    return totalSize;
-}
-void AssignExpr::Emit(Mips *mipsContext)
+Location* AssignExpr::Emit(CodeGenerator *codeGen)
 {
     // Create the tac objects
+    Location *left = NULL;
+    Location *right = NULL;
 
+    if (this->left != NULL)
+        left = this->left->Emit(codeGen);
+    right = this->right->Emit(codeGen);
+
+    Assert(left != NULL);
+    Assert(right != NULL);
+
+    if (right->structure == reference)
+    {
+        right = codeGen->GenLoad(right);
+    }
+    if (left->structure == reference)
+    {
+        codeGen->GenStore(left, right);
+        return NULL;
+    }
+
+    codeGen->GenAssign(left, right);
+
+    return NULL;
 } 
   
 ArrayAccess::ArrayAccess(yyltype loc, Expr *b, Expr *s) : LValue(loc) {
     (base=b)->SetParent(this); 
     (subscript=s)->SetParent(this);
 }
-void ArrayAccess::Emit(Mips *mipsContext)
+Location* ArrayAccess::Emit(CodeGenerator *codeGen)
 {
-    // TODO
+    Location *subscript;
+    Location *baseLocation;
+    Location *elementSize;
+    Location *baseOffset;
+    Location *errorMessage;
+    Location *isSmallerThanZero;
+    Location *isGreaterThanSize;
+    Location *isEqualToSize;
+    Location *isGreaterOrEqualToSize;
+    Location *isValidSubscript;
+    Location *zero;
+    Location *arraySize;
+    Location *result;
+
+    char *postLabel = codeGen->NewLabel();
+
+    subscript = this->subscript->Emit(codeGen);
+    subscript = subscript->structure == reference ? codeGen->GenLoad(subscript) : subscript;
+
+    // Array base address
+    baseLocation = base->Emit(codeGen);
+    if (baseLocation->structure == reference)
+    {
+        baseLocation = codeGen->GenLoad(baseLocation);
+    }
+    
+    // Check if subscript > 0
+    zero = codeGen->GenLoadConstant(0);
+    isSmallerThanZero = codeGen->GenBinaryOp("<", subscript, zero);
+
+    // Check if subscript > size
+    arraySize = codeGen->GenLoad(baseLocation, -4);
+    isGreaterThanSize = codeGen->GenBinaryOp("<", arraySize, subscript);
+    isEqualToSize = codeGen->GenBinaryOp("==", subscript, arraySize);
+
+    isGreaterOrEqualToSize = codeGen->GenBinaryOp("||", isGreaterThanSize, isEqualToSize);
+
+    isValidSubscript = codeGen->GenBinaryOp("||", isGreaterOrEqualToSize, isSmallerThanZero);
+
+    codeGen->GenIfZ(isValidSubscript, postLabel);
+
+    // Print error here
+    errorMessage = codeGen->GenLoadConstant("Decaf runtime error: Array index out of bounds\\n");
+    codeGen->GenBuiltInCall(PrintString, errorMessage);
+    codeGen->GenBuiltInCall(Halt);
+
+    codeGen->GenLabel(postLabel);
+    elementSize = codeGen->GenLoadConstant(4);
+    baseOffset = codeGen->GenBinaryOp("*", subscript, elementSize);
+
+    result = codeGen->GenBinaryOp("+", baseLocation, baseOffset);
+    result->structure = reference;
+    return result;
 }
      
 FieldAccess::FieldAccess(Expr *b, Identifier *f) 
@@ -118,20 +262,24 @@ FieldAccess::FieldAccess(Expr *b, Identifier *f)
     if (base) base->SetParent(this); 
     (field=f)->SetParent(this);
 }
-void FieldAccess::Emit(Mips *mipsContext)
+Location* FieldAccess::Emit(CodeGenerator *codeGen)
 {
     // TODO
     Location *fieldLocation = this->FindLocation(this->field->name);
+    Assert(fieldLocation != NULL);
+    return fieldLocation;
 }
 
-void LValue::Emit(Mips *mipsContext)
+Location* LValue::Emit(CodeGenerator *codeGen)
 {
-    // TODO
+    // This isn't real
+    return NULL;
 }
 
-void This::Emit(Mips *mipsContext)
+Location* This::Emit(CodeGenerator *codeGen)
 {
     // TODO
+    return NULL;
 }
 
 Call::Call(yyltype loc, Expr *b, Identifier *f, List<Expr*> *a) : Expr(loc)  {
@@ -141,28 +289,31 @@ Call::Call(yyltype loc, Expr *b, Identifier *f, List<Expr*> *a) : Expr(loc)  {
     (field=f)->SetParent(this);
     (actuals=a)->SetParentAll(this);
 }
-int Call::GetSize()
-{
-    int totalSize = 0;
-    // Add 4 for each parameter passed
-    totalSize += actuals->NumElements() * 4;
 
-    // 4 for return value
-    totalSize += 4;
-    return totalSize;
-}
-void Call::Emit(Mips *mipsContext)
+Location* Call::Emit(CodeGenerator *codeGen)
 {
-    // TODO
+    Location *result;
+    // if base is not null it may need to be an ACall
+    
+    // TODO figure out how to get return value later
+    for(int i = this->actuals->NumElements() - 1; i >= 0; i--)
+    {
+        codeGen->GenPushParam(this->actuals->Nth(i)->Emit(codeGen));
+    }
+    result = codeGen->GenLCall(this->field->name, true);
+
+    codeGen->GenPopParams(this->actuals->NumElements() * 4);
+    return result;
 }
 
 NewExpr::NewExpr(yyltype loc, NamedType *c) : Expr(loc) { 
   Assert(c != NULL);
   (cType=c)->SetParent(this);
 }
-void NewExpr::Emit(Mips *mipsContext)
+Location* NewExpr::Emit(CodeGenerator *codeGen)
 {
     // TODO
+    return NULL;
 }
 
 NewArrayExpr::NewArrayExpr(yyltype loc, Expr *sz, Type *et) : Expr(loc) {
@@ -170,17 +321,58 @@ NewArrayExpr::NewArrayExpr(yyltype loc, Expr *sz, Type *et) : Expr(loc) {
     (size=sz)->SetParent(this); 
     (elemType=et)->SetParent(this);
 }
-void NewArrayExpr::Emit(Mips *mipsContext)
+Location* NewArrayExpr::Emit(CodeGenerator *codeGen)
 {
-    // TODO
+    Location *result;
+    Location *elementCount;
+    Location *elementCountWithSize;
+    Location *totalSize;
+    Location *elementSize;
+    Location *zero;
+    Location *one;
+    Location *isGreaterThanZero;
+    Location *errorMessage;
+    char *postLabel = codeGen->NewLabel();
+
+    // Calc size and get loc
+    elementCount = this->size->Emit(codeGen);
+
+    // Check if size > 0
+    zero = codeGen->GenLoadConstant(0);
+
+    isGreaterThanZero = codeGen->GenBinaryOp("<", elementCount, zero);
+    codeGen->GenIfZ(isGreaterThanZero, postLabel);
+    
+    // Print error here
+    errorMessage = codeGen->GenLoadConstant("Decaf runtime error: Array size is <= 0\\n");
+    codeGen->GenBuiltInCall(PrintString, errorMessage);
+    codeGen->GenBuiltInCall(Halt);
+
+    // Now past the error handling section
+    codeGen->GenLabel(postLabel);
+    one = codeGen->GenLoadConstant(1);
+    elementCountWithSize = codeGen->GenBinaryOp("+", one, elementCount);
+    elementSize = codeGen->GenLoadConstant(4);
+    totalSize = codeGen->GenBinaryOp("*", elementCountWithSize, elementSize);
+    result = codeGen->GenBuiltInCall(Alloc, totalSize);
+
+    codeGen->GenStore(result, elementCount);
+
+    result = codeGen->GenBinaryOp("+", result, elementSize);
+
+    return result;
 }
        
-void ReadLineExpr::Emit(Mips *mipsContext)
+Location* ReadLineExpr::Emit(CodeGenerator *codeGen)
 {
     // TODO
+    return NULL;
 }
 
-void ReadIntegerExpr::Emit(Mips *mipsContext)
+Location* ReadIntegerExpr::Emit(CodeGenerator *codeGen)
 {
-    // TODO
+    Location *result;
+
+    result = codeGen->GenBuiltInCall(ReadInteger);
+    return result;
 }

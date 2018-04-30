@@ -45,12 +45,15 @@ class CodeGenerator {
 
     static Location* ThisPtr;
 
+    // Used to generate temp vars, gets set on each function call
+    int stackFrameOffset;
+
     CodeGenerator();
     
          // Assigns a new unique label name and returns it. Does not
          // generate any Tac instructions (see GenLabel below if needed)
     char *NewLabel();
-
+    char breakLabel[10];
     
          // Creates and returns a Location for a new uniquely named
          // temp variable. Does not generate any Tac instructions

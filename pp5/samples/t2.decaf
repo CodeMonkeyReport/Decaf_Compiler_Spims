@@ -15,6 +15,6 @@ int[] tester(int sz) {
 void main() {
   int[] d;
   d = tester(8);
-  Print(d[d[1]], "\n", d.length(), "\n");
+  Print(d[d[1]], "\n", 8, "\n");
   Print(b[0], "\n");
 }
